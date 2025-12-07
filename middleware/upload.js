@@ -8,21 +8,12 @@ const __dirname = path.dirname(__filename)
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, '../uploads')
-
-// Ensure directory exists (for Vercel/serverless environments)
-const ensureUploadsDir = () => {
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true })
 }
-}
-
-// Create directory on module load
-ensureUploadsDir()
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // Ensure directory exists before each upload (safety check for serverless)
-    ensureUploadsDir()
     cb(null, uploadsDir)
   },
   filename: (req, file, cb) => {
