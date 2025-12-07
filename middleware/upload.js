@@ -11,9 +11,9 @@ const uploadsDir = path.join(__dirname, '../uploads')
 
 // Ensure directory exists (for Vercel/serverless environments)
 const ensureUploadsDir = () => {
-  if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true })
-  }
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true })
+}
 }
 
 // Create directory on module load
