@@ -60,10 +60,26 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
+// Get uploads directory (same logic as upload.js)
+const getUploadsDir = () => {
+  if (process.env.VERCEL || process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production') {
+    const tmpDir = '/tmp/uploads'
+    if (fs.existsSync(tmpDir)) {
+      return tmpDir
+    }
+  }
+  const uploadsDir = path.join(__dirname, '../uploads')
+  if (fs.existsSync(uploadsDir)) {
+    return uploadsDir
+  }
+  return path.join(process.cwd(), 'uploads')
+}
+
 export const downloadResume = async (req, res) => {
   try {
     const { filename } = req.params
-    const filePath = path.join(__dirname, '../uploads', filename)
+    const uploadsDir = getUploadsDir()
+    const filePath = path.join(uploadsDir, filename)
     
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({

@@ -2,6 +2,7 @@ import express from 'express'
 import dotenv from 'dotenv'
 import cors from 'cors'
 import path from 'path'
+import fs from 'fs'
 import { fileURLToPath } from 'url'
 import mongoose from 'mongoose'
 import connectDB, { isConnected } from './config/database.js'
@@ -37,7 +38,44 @@ app.use(express.urlencoded({ extended: true }))
 // Serve uploaded files
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
+
+// Get uploads directory with fallback
+const getUploadsDir = () => {
+  if (process.env.VERCEL || process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production') {
+    const tmpDir = '/tmp/uploads'
+    if (fs.existsSync(tmpDir)) {
+      return tmpDir
+    }
+  }
+  const uploadsDir = path.join(__dirname, 'uploads')
+  if (fs.existsSync(uploadsDir)) {
+    return uploadsDir
+  }
+  return path.join(process.cwd(), 'uploads')
+}
+
+// Only serve static files if directory exists
+const uploadsDir = getUploadsDir()
+if (fs.existsSync(uploadsDir)) {
+  app.use('/uploads', express.static(uploadsDir))
+  console.log('📁 Serving uploads from:', uploadsDir)
+} else {
+  console.warn('⚠️  Uploads directory not found, static file serving disabled')
+}
+
+// Handle favicon.ico requests (prevent 500 errors)
+app.get('/favicon.ico', (req, res) => {
+  res.status(204).end()
+})
+
+// Root route
+app.get('/', (req, res) => {
+  res.json({
+    message: 'TICS Backend API',
+    status: 'running',
+    version: '1.0.0'
+  })
+})
 
 // Routes
 app.use('/api/contact', contactRoutes)
