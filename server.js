@@ -4,6 +4,7 @@ import cors from 'cors'
 import path from 'path'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
+import { createServer } from 'net'
 import mongoose from 'mongoose'
 import connectDB, { isConnected } from './config/database.js'
 import AdminUser from './models/AdminUser.js'
@@ -142,18 +143,95 @@ app.use((err, req, res, next) => {
   })
 })
 
-const PORT = process.env.PORT || 5000
+// Helper function to check if port is available
+const isPortAvailable = (port) => {
+  return new Promise((resolve) => {
+    const server = createServer()
+    server.once('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        resolve(false)
+      } else {
+        resolve(false)
+      }
+    })
+    server.once('listening', () => {
+      server.once('close', () => resolve(true))
+      server.close()
+    })
+    server.listen(port)
+  })
+}
 
-app.listen(PORT, async () => {
-  console.log(`🚀 Server running on port ${PORT}`)
-  console.log(`📡 API available at http://localhost:${PORT}/api`)
-  console.log(`\n⚠️  Note: If MongoDB is not connected, some features may not work.`)
-  console.log(`   Check your MONGODB_URI in server/.env file\n`)
+// Helper function to find available port
+const findAvailablePort = async (startPort) => {
+  for (let port = startPort; port <= startPort + 10; port++) {
+    if (await isPortAvailable(port)) {
+      return port
+    }
+  }
+  return null
+}
+
+const startServer = async () => {
+  let PORT = process.env.PORT || 5000
   
-  // Initialize admin after a short delay to allow DB connection
-  setTimeout(async () => {
-    await initializeAdmin()
-  }, 2000)
+  // Check if port is available
+  const portAvailable = await isPortAvailable(PORT)
+  
+  if (!portAvailable) {
+    console.warn(`⚠️  Port ${PORT} is already in use!`)
+    console.log(`   Searching for an available port...`)
+    
+    const availablePort = await findAvailablePort(parseInt(PORT) + 1)
+    
+    if (availablePort) {
+      PORT = availablePort
+      console.log(`   ✅ Found available port: ${PORT}`)
+      console.log(`   💡 To use a specific port, stop the process using port ${process.env.PORT || 5000}`)
+      console.log(`      Windows: netstat -ano | findstr :${process.env.PORT || 5000}`)
+      console.log(`      Then: taskkill /PID <PID> /F\n`)
+    } else {
+      console.error(`\n❌ Error: Could not find an available port!`)
+      console.error(`\n💡 Solutions:`)
+      console.error(`   1. Find and stop the process using port ${process.env.PORT || 5000}:`)
+      console.error(`      Windows: netstat -ano | findstr :${process.env.PORT || 5000}`)
+      console.error(`      Then: taskkill /PID <PID> /F`)
+      console.error(`   2. Use a different port by setting PORT in .env file`)
+      console.error(`      Example: PORT=5001`)
+      console.error(`   3. Or change the port in server/.env file\n`)
+      process.exit(1)
+    }
+  }
+
+  const server = app.listen(PORT, async () => {
+    console.log(`🚀 Server running on port ${PORT}`)
+    console.log(`📡 API available at http://localhost:${PORT}/api`)
+    console.log(`\n⚠️  Note: If MongoDB is not connected, some features may not work.`)
+    console.log(`   Check your MONGODB_URI in server/.env file\n`)
+    
+    // Initialize admin after a short delay to allow DB connection
+    setTimeout(async () => {
+      await initializeAdmin()
+    }, 2000)
+  })
+
+  // Handle other server errors
+  server.on('error', (error) => {
+    if (error.code === 'EADDRINUSE') {
+      console.error(`\n❌ Error: Port ${PORT} is already in use!`)
+      console.error(`   This shouldn't happen if port checking worked.`)
+      process.exit(1)
+    } else {
+      console.error('❌ Server error:', error)
+      process.exit(1)
+    }
+  })
+}
+
+// Start the server
+startServer().catch((error) => {
+  console.error('❌ Failed to start server:', error)
+  process.exit(1)
 })
 
 export default app
