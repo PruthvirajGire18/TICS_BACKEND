@@ -29,8 +29,31 @@ connectDB().catch((err) => {
 })
 
 // Middleware
+// Configure CORS to allow multiple origins (development and production)
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'http://localhost:3000',
+  'https://ticss.netlify.app',
+  'https://www.ticss.netlify.app'
+].filter(Boolean) // Remove undefined values
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true)
+    
+    // Check if origin is in allowed list
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true)
+    } else {
+      // In development, allow all origins
+      if (process.env.NODE_ENV === 'development') {
+        callback(null, true)
+      } else {
+        callback(new Error('Not allowed by CORS'))
+      }
+    }
+  },
   credentials: true
 }))
 app.use(express.json())
